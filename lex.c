@@ -36,6 +36,7 @@ Due Date: See Webcourses
 */
 
 
+#include <math.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,3 +65,20 @@ int scan_source(
     size_t *token_count,
     LexError *error
 );
+
+int main(int argc, char *argv[]) {
+    // read files and check arguments
+    if (argc != 2) {
+        fprintf(stderr, "Usage: ./lex <input file>\n");
+        return 1;
+    }
+
+    // file can't be opened
+    FILE *input = fopen(argv[1], "rb");
+    if (argv[1] == NULL) {
+        printf("Error: unable to open input file %s\n", argv[1]);
+        return 1;
+    }
+
+
+}
