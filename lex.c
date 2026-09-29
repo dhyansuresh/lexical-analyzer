@@ -77,6 +77,34 @@ int scan_source(
     LexError *error
 );
 
+#define RESERVED_WORDS_COUNT 17
+
+const char *reserved_words[RESERVED_WORDS_COUNT] = {
+  "begin",
+  "end", 
+  "if",
+  "fi", 
+  "then",
+  "while",
+  "elihw", 
+  "do",
+  "od", 
+  "odd", 
+  "call", 
+  "const", 
+  "var", 
+  "procedure", 
+  "write", 
+  "read", 
+  "else"
+};
+
+
+int get_ident(char* buffer, unsigned char* bytes, int offset, int capacity);
+
+int reserved_cmp (char* buffer, const char* reserved_words[], int words_count);
+
+
 int main(int argc, char *argv[]) {
     // read files and check arguments
     if (argc != 2) {
@@ -130,4 +158,72 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+
+
+
+    // printf("%s", file.bytes);
+
+    int column = 0;
+ 
+    for (int i = 0; i < file.size; i++){
+      char buffer[12] = { 0 };
+      char c = file.bytes[i];
+
+
+      // Reading Identifier or reserved word
+      if ((c >= 61 && c <= 90) || (c >= 97 && c <= 122)){
+        buffer[0] = c;
+        int length = get_ident(buffer, file.bytes, i, file.capacity);
+
+        // TODO: optimize this skiping this step if the 
+        // identifier is longer than any word, have uppercase
+        // or have any number
+        int reserved = reserved_cmp (buffer, reserved_words, RESERVED_WORDS_COUNT);
+
+        if (reserved == 0){
+          // identifier
+        } else {
+          // reserved word
+        }
+      }
+
+      if (c == '\n'){
+          column++;
+      }
+    }
+
+}
+
+int get_ident(char* buffer, unsigned char* bytes, int offset, int capacity){
+  int length = 1;
+
+    // starting at 1 because the first character was already taken before calling the function
+  for (int i = 1; i < 12; i++, length++) { 
+    if (i + offset > capacity)
+      return length; // avoiding reading outside the input
+
+    char c = bytes[offset + i]; 
+
+    // Numbers, Uppercase and Lowercase
+    if (!(c >= 48 && c <= 57) && !(c >= 61 && c <= 90) && !(c >= 97 && c <= 122)){
+      break;
+    }
+
+    buffer[i] = c;
+  }
+
+  return length;
+}
+
+int reserved_cmp (char* buffer, const char* reserved_words[], int words_count){
+  int cmp = 0;
+
+  for ( int i = 0; i < words_count; i++ ){
+       cmp = strcmp(buffer, reserved_words[i]);
+
+      if (cmp != 0)
+        return cmp;
+  }
+
+  return cmp;
 }
