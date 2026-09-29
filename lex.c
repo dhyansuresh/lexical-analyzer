@@ -124,5 +124,8 @@ int main(int argc, char *argv[]) {
     }
     fclose(input);
 
-
+    // Error 11
+    if (file.bytes == NULL && file.capacity == 0) {
+        fprintf(stderr, "no tokens in the source program.\n");
+    }
     }
