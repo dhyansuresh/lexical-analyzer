@@ -40,7 +40,9 @@ Due Date: See Webcourses
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
+// token storage
 typedef struct {
     char *lexeme;
     int type;
@@ -48,6 +50,7 @@ typedef struct {
     int column;
 } Token;
 
+// use to store the errors the scanner finds
 typedef struct {
     int number;
     int line;
@@ -58,6 +61,14 @@ typedef struct {
     char character;
 } LexError;
 
+// file holds no token stuct
+typedef struct {
+    unsigned char *bytes;
+    int size;
+    int capacity;
+} InputFile;
+
+// use for token reading
 int scan_source(
     const unsigned char *source,
     size_t source_length,
@@ -75,10 +86,43 @@ int main(int argc, char *argv[]) {
 
     // file can't be opened
     FILE *input = fopen(argv[1], "rb");
-    if (argv[1] == NULL) {
+    if (input == NULL) {
         printf("Error: unable to open input file %s\n", argv[1]);
         return 1;
     }
 
+    // read the input file
+    InputFile file = {NULL, 0, 0};
+    int byte;
 
-}
+    while ((byte = fgetc(input)) != EOF) {
+        if (file.size == file.capacity) {
+            int new_capacity = file.capacity == 0 ? 1024 : file.capacity * 2;
+
+            if (new_capacity <= file.capacity) {
+                free(file.bytes);
+                fclose(input);
+                return 1;
+            }
+
+            unsigned char *new_bytes = realloc(file.bytes, new_capacity);
+            if (new_bytes == NULL) {
+                free(file.bytes);
+                fclose(input);
+                return 1;
+            }
+
+            file.bytes = new_bytes;
+            file.capacity = new_capacity;
+        }
+        file.bytes[file.size++] = byte;
+        }
+    if (ferror(input)) {
+        free(file.bytes);
+        fclose(input);
+        return 1;
+    }
+    fclose(input);
+
+
+    }
