@@ -36,6 +36,7 @@ Due Date: See Webcourses
 */
 
 
+#include <ctype.h>
 #include <math.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -168,10 +169,11 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < file.size; i++){
       char buffer[12] = { 0 };
       char c = file.bytes[i];
+      char next = (i == file.capacity)? -1: file.bytes[i + 1];
 
+      if (isspace(c)) continue;
 
-      // Reading Identifier or reserved word
-      if ((c >= 61 && c <= 90) || (c >= 97 && c <= 122)){
+      if (isalpha(c)){
         buffer[0] = c;
         int length = get_ident(buffer, file.bytes, i, file.capacity);
 
@@ -185,11 +187,62 @@ int main(int argc, char *argv[]) {
         } else {
           // reserved word
         }
+
+        i += length;
       }
 
-      if (c == '\n'){
-          column++;
+      switch (c) {
+         case '+':
+           continue;
+         case '-':
+           continue;
+         case '*':
+           continue;
+         case '/':
+           continue;
+
+         case '=': 
+           if (next == '='){
+           } else {
+             i++;
+
+           }
+           continue;
+         case '!':
+            i++;
+            continue;
+         case '>':
+            if (!(next == '=')){
+            } else {
+              i++;
+
+            }
+            continue;
+         case '<':
+            if (next == '='){
+              i++;
+            } else {
+            }
+            continue;
+
+         case '(':
+            continue;
+         case ')':
+            continue;
+         case ',':
+            continue;
+         case ';':
+            continue;
+         case '.':
+            continue;
+         case ':':
+            i++;
+            continue;
+         case '\n':
+              column++;
+          continue;
       }
+
     }
 
 }
@@ -204,8 +257,8 @@ int get_ident(char* buffer, unsigned char* bytes, int offset, int capacity){
 
     char c = bytes[offset + i]; 
 
-    // Numbers, Uppercase and Lowercase
-    if (!(c >= 48 && c <= 57) && !(c >= 61 && c <= 90) && !(c >= 97 && c <= 122)){
+    // breaking if character is not number or letter
+    if (!(isdigit(c) | isalpha(c))){
       break;
     }
 
