@@ -76,7 +76,45 @@ int scan_source(
     Token **tokens,
     size_t *token_count,
     LexError *error
-);
+) {
+  Token *list = NULL;
+  int tcount = 0;
+  int capacity = 0;
+
+  for (int i = 0; i < source_length; i++) {
+    unsigned char c = source[i];
+    char buffer[13];
+
+    if ((c < 0x20) || (c > 0x7e) && (c != '\n') && (c != '\r')) { // Error 10byte outside range
+      error->number = 10;
+      error->byte = c;
+      printf("Error 10 at line %d, column %d: byte 0x%02X is not part of this language", error->line, error->column, c);
+    }
+
+    if (tcount == capacity) {
+      int new_capacity = capacity == 0 ? 1024 : capacity * 2;
+      Token *new_list = realloc(list, new_capacity * sizeof(*list));
+
+      if (new_list == NULL) {
+        free(list);
+        return 1;
+      }
+      list = new_list;
+      capacity = new_capacity;
+
+      *tokens = list;
+      *token_count = tcount;
+      return 0;
+    }
+
+    int res_word = get_ident(buffer, source[i], c, capacity);
+
+  }
+
+
+
+
+};
 
 #define RESERVED_WORDS_COUNT 17
 #define MAX_IDENTIFIER_LENGTH 12
@@ -138,14 +176,12 @@ int main(int argc, char *argv[]) {
                 fclose(input);
                 return 1;
             }
-
             unsigned char *new_bytes = realloc(file.bytes, new_capacity);
             if (new_bytes == NULL) {
                 free(file.bytes);
                 fclose(input);
                 return 1;
             }
-
             file.bytes = new_bytes;
             file.capacity = new_capacity;
         }
@@ -164,7 +200,9 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // printf("%s", file.bytes);
+  // source program print
+  printf("Source Program:\n");
+  fwrite(file.bytes, file.size, 1, stdout);
 
     char **identifiers_table = NULL;
     int column = 0;
@@ -287,6 +325,7 @@ int get_number(char *buffer, const unsigned char *bytes, int offset, int capacit
 
   while (offset + length < capacity && isdigit(bytes[offset + length])) {
     if (length == NUMBER_LENGTH )
+      printf("number too long 'lexeme'");
       return -1; // error 3
 
     buffer[length] = bytes[offset + length];
