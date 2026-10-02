@@ -69,53 +69,6 @@ typedef struct {
     int capacity;
 } InputFile;
 
-// use for token reading
-int scan_source(
-    const unsigned char *source,
-    size_t source_length,
-    Token **tokens,
-    size_t *token_count,
-    LexError *error
-) {
-  Token *list = NULL;
-  int tcount = 0;
-  int capacity = 0;
-
-  for (int i = 0; i < source_length; i++) {
-    unsigned char c = source[i];
-    char buffer[13];
-
-    if ((c < 0x20) || (c > 0x7e) && (c != '\n') && (c != '\r')) { // Error 10byte outside range
-      error->number = 10;
-      error->byte = c;
-      printf("Error 10 at line %d, column %d: byte 0x%02X is not part of this language", error->line, error->column, c);
-    }
-
-    if (tcount == capacity) {
-      int new_capacity = capacity == 0 ? 1024 : capacity * 2;
-      Token *new_list = realloc(list, new_capacity * sizeof(*list));
-
-      if (new_list == NULL) {
-        free(list);
-        return 1;
-      }
-      list = new_list;
-      capacity = new_capacity;
-
-      *tokens = list;
-      *token_count = tcount;
-      return 0;
-    }
-
-    int res_word = get_ident(buffer, source[i], c, capacity);
-
-  }
-
-
-
-
-};
-
 #define RESERVED_WORDS_COUNT 17
 #define MAX_IDENTIFIER_LENGTH 12
 #define NUMBER_LENGTH 6
@@ -140,14 +93,75 @@ const char *reserved_words[RESERVED_WORDS_COUNT] = {
   "else"
 };
 
+const char *symbols[21] = {
+  [4] = "+",
+   [5] = "-",
+   [6] = "*",
+   [7] = "/",
+   [9] = "=",
+   [10] = "<>",
+   [11] = "<",
+   [12] = "<=",
+   [13] = ">",
+   [14] = ">=",
+   [15] = "(",
+   [16] = ")",
+   [17] = ",",
+   [18] = ";",
+   [19] = ".",
+   [20] = ":="
+}
 
-
-
+// prototypes
 int get_ident(char *buffer, const unsigned char *bytes, int offset, int capacity);
-
 int get_number(char *buffer, const unsigned char *bytes, int offset, int capacity);
-
 int reserved_cmp (char* buffer, const char* reserved_words[], int words_count);
+
+// use for token reading
+int scan_source(
+    const unsigned char *source,
+    size_t source_length,
+    Token **tokens,
+    size_t *token_count,
+    LexError *error
+) {
+  Token *list = NULL;
+  int tcount = 0;
+  int capacity = 0;
+
+  for (int i = 0; i < source_length; i++) {
+    unsigned char c = source[i];
+    char buffer[13];
+
+    if ((c < 0x20) || (c > 0x7e) && c != '\n' && c != '\r' && c != '\t') { // Error 10byte outside range
+      error->number = 10;
+      error->byte = c;
+      error->line = line;
+      error->column = column;
+      printf("Error 10 at line %d, column %d: byte 0x%02X is not part of this language", error->line, error->column, c);
+    }
+
+    if (tcount == capacity) {
+      int new_capacity = capacity == 0 ? 1024 : capacity * 2;
+      Token *new_list = realloc(list, new_capacity * sizeof(*list));
+
+      if (new_list == NULL) {
+        free(list);
+        return 1;
+      }
+      list = new_list;
+      capacity = new_capacity;
+
+      *tokens = list;
+      *token_count = tcount;
+      return 0;
+    }
+
+    int word_len = get_ident(buffer, source, i, source_length);
+
+
+  }
+};
 
 int main(int argc, char *argv[]) {
     // read files and check arguments
