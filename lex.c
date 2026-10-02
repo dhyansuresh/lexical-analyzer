@@ -61,7 +61,7 @@ typedef struct {
     char character;
 } LexError;
 
-// file holds no token stuct
+// file holds no token struct
 typedef struct {
     unsigned char *bytes;
     int size;
@@ -158,10 +158,10 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-
-
-
-    // printf("%s", file.bytes);
+    
+    // source program:
+    printf("Source Program:\n");
+    fwrite(file.bytes, file.size, 1, stdout);
 
     int column = 0;
  
