@@ -36,6 +36,7 @@ Due Date: See Webcourses
 */
 
 
+#include <ctype.h>
 #include <math.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -44,8 +45,8 @@ Due Date: See Webcourses
 
 // token storage
 typedef struct {
-    char *lexeme;
-    int type;
+    char *name;
+    int code;
     int line;
     int column;
 } Token;
@@ -61,7 +62,7 @@ typedef struct {
     char character;
 } LexError;
 
-// file holds no token struct
+// file holds no token stuct
 typedef struct {
     unsigned char *bytes;
     int size;
@@ -78,6 +79,8 @@ int scan_source(
 );
 
 #define RESERVED_WORDS_COUNT 17
+#define MAX_IDENTIFIER_LENGTH 12
+#define NUMBER_LENGTH 6
 
 const char *reserved_words[RESERVED_WORDS_COUNT] = {
   "begin",
@@ -100,10 +103,13 @@ const char *reserved_words[RESERVED_WORDS_COUNT] = {
 };
 
 
-int get_ident(char* buffer, unsigned char* bytes, int offset, int capacity);
+
+
+int get_ident(char *buffer, const unsigned char *bytes, int offset, int capacity);
+
+int get_number(char *buffer, const unsigned char *bytes, int offset, int capacity);
 
 int reserved_cmp (char* buffer, const char* reserved_words[], int words_count);
-
 
 int main(int argc, char *argv[]) {
     // read files and check arguments
@@ -158,22 +164,23 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    // printf("%s", file.bytes);
 
-    // source program print
-    printf("Source Program:\n");
-    fwrite(file.bytes, file.size, 1, stdout);
-
+    char **identifiers_table = NULL;
     int column = 0;
- 
+    
+
     for (int i = 0; i < file.size; i++){
-      char buffer[12] = { 0 };
+      char buffer[15] = { 0 };
       char c = file.bytes[i];
+      char next = (i == file.capacity)? -1: file.bytes[i + 1];
 
-
-      // Reading Identifier or reserved word
-      if ((c >= 61 && c <= 90) || (c >= 97 && c <= 122)){
-        buffer[0] = c;
+      if (isalpha(c)){
         int length = get_ident(buffer, file.bytes, i, file.capacity);
+
+        if (length == -1){
+          // print error and scape
+        }
 
         // TODO: optimize this skiping this step if the 
         // identifier is longer than any word, have uppercase
@@ -185,35 +192,111 @@ int main(int argc, char *argv[]) {
         } else {
           // reserved word
         }
+
+        i += length;
+        continue;
       }
 
-      if (c == '\n'){
-          column++;
+      if (isdigit(c)){
+        int length = get_number(buffer, file.bytes, i, file.capacity);
+
+        if (length == -1){
+          // print error and scape
+        }
+
+        int number = atoi(buffer);
       }
+
+      switch (c) {
+         case '+':
+           continue;
+         case '-':
+           continue;
+         case '*':
+           continue;
+         case '/':
+           continue;
+
+         case '=': 
+           if (next == '='){
+           } else {
+             i++;
+           }
+           continue;
+         case '!':
+            i++;
+            continue;
+         case '>':
+            if (!(next == '=')){
+            } else {
+              i++;
+
+            }
+            continue;
+         case '<':
+            if (next == '='){
+              i++;
+            } else {
+            }
+            continue;
+
+         case '(':
+            continue;
+         case ')':
+            continue;
+         case ',':
+            continue;
+         case ';':
+            continue;
+         case '.':
+            continue;
+         case ':':
+            i++;
+            continue;
+         case '\n':
+              column++;
+          continue;
+      }
+
+      if (isspace(c)) continue;
+
     }
 
 }
 
-int get_ident(char* buffer, unsigned char* bytes, int offset, int capacity){
-  int length = 1;
+int get_ident(char *buffer, const unsigned char *bytes, int offset, int capacity) {
+  if (offset >= capacity || !isalpha(bytes[offset]))
+    return 0;
 
-    // starting at 1 because the first character was already taken before calling the function
-  for (int i = 1; i < 12; i++, length++) { 
-    if (i + offset > capacity)
-      return length; // avoiding reading outside the input
+  int length = 0;
 
-    char c = bytes[offset + i]; 
+  while (offset + length < capacity && isalnum(bytes[offset + length])) {
+    if (length == MAX_IDENTIFIER_LENGTH)
+      return -1; // error 2
 
-    // Numbers, Uppercase and Lowercase
-    if (!(c >= 48 && c <= 57) && !(c >= 61 && c <= 90) && !(c >= 97 && c <= 122)){
-      break;
-    }
-
-    buffer[i] = c;
+    buffer[length] = bytes[offset + length];
+    length++;
   }
 
+  buffer[length] = '\0';
   return length;
 }
+
+int get_number(char *buffer, const unsigned char *bytes, int offset, int capacity) {
+  int length = 0;
+
+  while (offset + length < capacity && isdigit(bytes[offset + length])) {
+    if (length == NUMBER_LENGTH )
+      return -1; // error 3
+
+    buffer[length] = bytes[offset + length];
+    length++;
+  }
+
+  buffer[length] = '\0';
+  return length;
+}
+
 
 int reserved_cmp (char* buffer, const char* reserved_words[], int words_count){
   int cmp = 0;
