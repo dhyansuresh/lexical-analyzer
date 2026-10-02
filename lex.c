@@ -158,8 +158,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    
-    // source program:
+
+    // source program print
     printf("Source Program:\n");
     fwrite(file.bytes, file.size, 1, stdout);
 
