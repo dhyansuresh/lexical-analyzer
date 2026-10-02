@@ -93,75 +93,36 @@ const char *reserved_words[RESERVED_WORDS_COUNT] = {
   "else"
 };
 
-const char *symbols[21] = {
-  [4] = "+",
-   [5] = "-",
-   [6] = "*",
-   [7] = "/",
-   [9] = "=",
-   [10] = "<>",
-   [11] = "<",
-   [12] = "<=",
-   [13] = ">",
-   [14] = ">=",
-   [15] = "(",
-   [16] = ")",
-   [17] = ",",
-   [18] = ";",
-   [19] = ".",
-   [20] = ":="
-}
+const char *symbols[20] = {
+  [3] = "+",
+  [4] = "-",
+  [5] = "*",
+  [6] = "/",
+  [7] = "==",
+  [8] = "!=",
+  [9] = "<",
+  [10] = "<=",
+  [11] = ">",
+  [12] = ">=",
+  [13] = "(",
+  [14] = ")",
+  [15] = ",",
+  [16] = ";",
+  [17] = ".",
+  [18] = "=",
+  [19] = ":="
+};
 
 // prototypes
 int get_ident(char *buffer, const unsigned char *bytes, int offset, int capacity);
 int get_number(char *buffer, const unsigned char *bytes, int offset, int capacity);
 int reserved_cmp (char* buffer, const char* reserved_words[], int words_count);
-
-// use for token reading
-int scan_source(
-    const unsigned char *source,
+void print_error (LexError *error);
+int scan_source(const unsigned char *source,
     size_t source_length,
     Token **tokens,
     size_t *token_count,
-    LexError *error
-) {
-  Token *list = NULL;
-  int tcount = 0;
-  int capacity = 0;
-
-  for (int i = 0; i < source_length; i++) {
-    unsigned char c = source[i];
-    char buffer[13];
-
-    if ((c < 0x20) || (c > 0x7e) && c != '\n' && c != '\r' && c != '\t') { // Error 10byte outside range
-      error->number = 10;
-      error->byte = c;
-      error->line = line;
-      error->column = column;
-      printf("Error 10 at line %d, column %d: byte 0x%02X is not part of this language", error->line, error->column, c);
-    }
-
-    if (tcount == capacity) {
-      int new_capacity = capacity == 0 ? 1024 : capacity * 2;
-      Token *new_list = realloc(list, new_capacity * sizeof(*list));
-
-      if (new_list == NULL) {
-        free(list);
-        return 1;
-      }
-      list = new_list;
-      capacity = new_capacity;
-
-      *tokens = list;
-      *token_count = tcount;
-      return 0;
-    }
-
-    int word_len = get_ident(buffer, source, i, source_length);
-
-
-  }
-};
+    LexError *error);
 
 int main(int argc, char *argv[]) {
     // read files and check arguments
@@ -169,18 +130,15 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Usage: ./lex <input file>\n");
         return 1;
     }
-
     // file can't be opened
     FILE *input = fopen(argv[1], "rb");
     if (input == NULL) {
         printf("Error: unable to open input file %s\n", argv[1]);
         return 1;
     }
-
     // read the input file
     InputFile file = {NULL, 0, 0};
     int byte;
-
     while ((byte = fgetc(input)) != EOF) {
         if (file.size == file.capacity) {
             int new_capacity = file.capacity == 0 ? 1024 : file.capacity * 2;
@@ -201,119 +159,329 @@ int main(int argc, char *argv[]) {
         }
         file.bytes[file.size++] = byte;
         }
+
     if (ferror(input)) {
         free(file.bytes);
         fclose(input);
         return 1;
     }
     fclose(input);
-
-    // Error 11
-    if (file.bytes == NULL && file.capacity == 0) {
-        fprintf(stderr, "no tokens in the source program.\n");
-        return 1;
-    }
-
+    
   // source program print
   printf("Source Program:\n");
   fwrite(file.bytes, file.size, 1, stdout);
 
-    char **identifiers_table = NULL;
-    int column = 0;
-    
+  Token *tokens = NULL;
+    int token_count = 0;
+    LexError error = {0};
+    int c = scan_source(file.bytes, file.size, &tokens, &token_count, &error);
 
-    for (int i = 0; i < file.size; i++){
-      char buffer[15] = { 0 };
-      char c = file.bytes[i];
-      char next = (i == file.capacity)? -1: file.bytes[i + 1];
+}
 
-      if (isalpha(c)){
-        int length = get_ident(buffer, file.bytes, i, file.capacity);
 
-        if (length == -1){
-          // print error and scape
+// use for token reading
+int scan_source(
+    const unsigned char *source,
+    size_t source_length,
+    Token **tokens,
+    size_t *token_count,
+    LexError *error
+) {
+    int capacity = 0;
+    int start = 0;
+    int length = 0;
+    int line = 1;
+    int column = 1;
+    int start_line = 1;
+    int start_column = 1;
+    int error_number = 0;
+
+    *tokens = NULL;
+    *token_count = 0;
+    *error = (LexError){0};
+
+    for (size_t i = 0; i < source_length; i++) {
+        unsigned char current = source[i];
+        int c = 0;
+
+        start = i;
+        start_line = line;
+        start_column = column;
+        length = 0;
+
+        if ((current < 0x20 || current > 0x7e) &&
+            current != '\n' &&
+            current != '\r' &&
+            current != '\t') {
+            error_number = 10;
+            length = 1;
+            goto lexical_error;
         }
 
-        // TODO: optimize this skiping this step if the 
-        // identifier is longer than any word, have uppercase
-        // or have any number
-        int reserved = reserved_cmp (buffer, reserved_words, RESERVED_WORDS_COUNT);
+        if (isspace(current)) {
+            if (current == '\n') {
+                line++;
+                column = 1;
+            } else if (current != '\r') {
+                column++;
+            }
 
-        if (reserved == 0){
-          // identifier
+            continue;
+        }
+
+        if (current == '*' &&
+            source_length - i >= 2 &&
+            source[i + 1] == '/') {
+            length = 2;
+            error_number = 8;
+            goto lexical_error;
+        }
+
+        // ignore comments
+        if (current == '/' &&
+            source_length - i >= 2 &&
+            source[i + 1] == '*') {
+            int closed = 0;
+
+            i += 2;
+            column += 2;
+
+            for (; i < source_length; i++) {
+                current = source[i];
+
+                if (source_length - i >= 2 &&
+                    current == '/' &&
+                    source[i + 1] == '*') {
+                    start = i;
+                    start_line = line;
+                    start_column = column;
+                    length = 2;
+                    error_number = 9;
+                    goto lexical_error;
+                }
+
+                if (source_length - i >= 2 &&
+                    current == '*' &&
+                    source[i + 1] == '/') {
+                    i++;
+                    column += 2;
+                    closed = 1;
+                    break;
+                }
+
+                if (current == '\n') {
+                    line++;
+                    column = 1;
+                } else if (current != '\r') {
+                    column++;
+                }
+            }
+
+            if (!closed) {
+                length = 2;
+                error_number = 7;
+                goto lexical_error;
+            }
+            continue;
+        }
+
+        if (isalpha(current)) {
+            char buffer[MAX_IDENTIFIER_LENGTH + 1];
+            int word_length = get_ident(buffer,source,i,source_length);
+
+            if (word_length == -1) {
+                int end = i;
+
+                for (; end < source_length &&
+                       isalnum(source[end]); end++) {
+                }
+
+                length = end - start;
+                error_number = 2;
+                goto lexical_error;
+            }
+
+            length = word_length;
+
+            // check for res words
+            c = reserved_cmp(buffer, reserved_words, RESERVED_WORDS_COUNT);
+
+            i += length - 1;
+            column += word_length;
+        } else if (isdigit(current)) {
+            int end = i;
+
+            for (; end < source_length &&
+                   isdigit(source[end]); end++) {
+            }
+
+            int digit_count = end - start;
+
+            if (end < source_length && isalpha(source[end])) {
+                for (; end < source_length &&
+                       isalnum(source[end]); end++) {
+                }
+
+                length = end - start;
+                error_number = 6;
+                goto lexical_error;
+            }
+
+            length = digit_count;
+
+            if (length > NUMBER_LENGTH) {
+                error_number = 3;
+                goto lexical_error;
+            }
+
+            c = 2;
+            i += length - 1;
+            column += length;
         } else {
-          // reserved word
+            for (int j = 0; j < 20; j++) {
+                if (symbols[j] == NULL)
+                    continue;
+
+                int symbol_length = strlen(symbols[j]);
+
+                if (symbol_length > length &&
+                    symbol_length <= source_length - i &&
+                    memcmp(source + i, symbols[j], symbol_length) == 0) {
+                    c = j;
+                    length = symbol_length;
+                }
+            }
+
+            if (c == 0) {
+                if (current == ':')
+                    error_number = 4;
+                else if (current == '!')
+                    error_number = 5;
+                else
+                    error_number = 1;
+
+                length = 1;
+                goto lexical_error;
+            }
+
+            i += length - 1;
+            column += length;
         }
 
-        i += length;
-        continue;
-      }
+        if (*token_count == capacity) {
+            size_t max_capacity = (size_t)-1 / sizeof(**tokens);
+            size_t new_capacity;
 
-      if (isdigit(c)){
-        int length = get_number(buffer, file.bytes, i, file.capacity);
+            if (capacity == max_capacity)
+                return -1;
 
-        if (length == -1){
-          // print error and scape
+            if (capacity == 0) {
+                new_capacity = max_capacity < 64 ? max_capacity : 64;
+            } else {
+                new_capacity = capacity > max_capacity / 2 ? max_capacity : capacity * 2;
+            }
+
+            Token *new_list = realloc(*tokens, new_capacity * sizeof(**tokens));
+
+            if (new_list == NULL)
+                return -1;
+
+            *tokens = new_list;
+            capacity = new_capacity;
         }
 
-        int number = atoi(buffer);
-      }
+        char *text = malloc(length + 1);
 
-      switch (c) {
-         case '+':
-           continue;
-         case '-':
-           continue;
-         case '*':
-           continue;
-         case '/':
-           continue;
+        if (text == NULL)
+            return -1;
 
-         case '=': 
-           if (next == '='){
-           } else {
-             i++;
-           }
-           continue;
-         case '!':
-            i++;
-            continue;
-         case '>':
-            if (!(next == '=')){
-            } else {
-              i++;
+        memcpy(text, source + start, length);
+        text[length] = '\0';
 
-            }
-            continue;
-         case '<':
-            if (next == '='){
-              i++;
-            } else {
-            }
-            continue;
+        (*tokens)[*token_count] = (Token){
+            .name = text,
+            .code = c,
+            .line = start_line,
+            .column = start_column
+        };
 
-         case '(':
-            continue;
-         case ')':
-            continue;
-         case ',':
-            continue;
-         case ';':
-            continue;
-         case '.':
-            continue;
-         case ':':
-            i++;
-            continue;
-         case '\n':
-              column++;
-          continue;
-      }
-
-      if (isspace(c)) continue;
-
+        (*token_count)++;
     }
 
+    if (*token_count == 0) {
+        error->number = 11;
+        error->line = 1;
+        error->column = 1;
+        return 1;
+    }
+
+    return 0;
+
+lexical_error:
+    error->number = error_number;
+    error->line = start_line;
+    error->column = start_column;
+    error->byte = source[start];
+    error->character = (char)source[start];
+    error->lexeme = malloc(length + 1);
+
+    if (error->lexeme == NULL)
+        return -1;
+
+    memcpy(error->lexeme, source + start, length);
+    error->lexeme[length] = '\0';
+
+    return 1;
+}
+
+// errors list
+void print_error(const LexError *error) {
+    printf(
+        "Error %d at line %d, column %d: ",
+        error->number,
+        error->line,
+        error->column
+    );
+
+    switch (error->number) {
+        case 1:
+            printf("invalid character '%c'", error->character);
+            break;
+        case 2:
+            printf("identifier too long '%s'", error->lexeme);
+            break;
+        case 3:
+            printf("number too long '%s'", error->lexeme);
+            break;
+        case 4:
+            printf("':' must be followed by '='");
+            break;
+        case 5:
+            printf("'!' must be followed by '='");
+            break;
+        case 6:
+            printf("number followed by a letter '%s'", error->lexeme);
+            break;
+        case 7:
+            printf("comment is not closed before end of file");
+            break;
+        case 8:
+            printf("'*/' without a matching '/*'");
+            break;
+        case 9:
+            printf("'/*' inside a comment");
+            break;
+        case 10:
+            printf(
+                "byte 0x%02X is not part of this language",
+                (unsigned int)error->byte
+            );
+            break;
+        case 11:
+            printf("no tokens in the source program");
+            break;
+    }
+    printf("\n");
 }
 
 int get_ident(char *buffer, const unsigned char *bytes, int offset, int capacity) {
