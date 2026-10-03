@@ -49,6 +49,7 @@ typedef struct {
     int code;
     int line;
     int column;
+    int index;
 } Token;
 
 // use to store the errors the scanner finds
@@ -122,6 +123,7 @@ int scan_source(const unsigned char *source,
     Token **tokens,
     size_t *token_count,
     LexError *error);
+void free_all(Token *tokens, size_t token_count, LexError *error, InputFile *file);
 
 int main(int argc, char *argv[]) {
     // read files and check arguments
@@ -185,26 +187,25 @@ int main(int argc, char *argv[]) {
         free(file.bytes);
         return 1;
     }
-    printf("\nLexeme Table:\n");
+    printf("\nLexeme Table:\n\n");
     printf("%-15s%s\n", "lexeme", "token");
 
     for (int i = 0; i < token_count; i++) {
         printf("%-15s%d\n", tokens[i].name, tokens[i].code);
     }
+    printf("\n");
 
     printf("Name Table:\n");
 
-    printf("%-7s%-15s%-7s%s\n", "index", "name", "line", "column");
-    for (int i = 0; i < token_count; i++) {
-        printf("%-15s %s\n",i ,tokens[i].name, tokens[i].line, tokens[i].column);
-    }
 
-    printf("Token List:\n");
+    printf("Token List:\n\n");
     for (int i = 0; i < token_count; i++) {
         printf("%d ", tokens[i].code);
     }
 
+
     if (c == 1) {
+        printf("\n");
        print_error(&error);
     }
 }
@@ -533,4 +534,13 @@ int reserved_cmp (char* buffer, const char* reserved_words[], int words_count) {
         }
     }
     return 1;
+}
+
+void free_all(Token *tokens, size_t token_count, LexError *error, InputFile *file) {
+    for (size_t i = 0; i < token_count; i++)
+        free(tokens[i].name);
+
+    free(tokens);
+    free(error->lexeme);
+    free(file->bytes);
 }
