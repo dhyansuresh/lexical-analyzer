@@ -131,6 +131,8 @@ int name_lookup_or_insert(Identifier **names, size_t *name_count,
   int column);
 void free_all(Token *tokens, size_t token_count, LexError *error, InputFile *file);
 
+void write_output_files(const Token *tokens, size_t token_count, const Identifier *names, size_t name_count);
+
 // use for token reading
 int scan_source(
     const unsigned char *source,
@@ -206,6 +208,9 @@ int main(int argc, char *argv[]) {
         free(file.bytes);
         return 1;
     }
+
+    write_output_files(tokens, token_count, names, name_count);
+
     printf("\nLexeme Table:\n\n");
     printf("%-15s%s\n", "lexeme", "token");
 
@@ -628,3 +633,29 @@ int name_lookup_or_insert(Identifier **names, size_t *name_count, size_t *name_c
     return (int)i;
 }
 
+// writes tokens.txt and nametable.txt with whatever was scanned
+void write_output_files(const Token *tokens, size_t token_count,
+                        const Identifier *names, size_t name_count) {
+    FILE *tf = fopen("tokens.txt", "w");
+
+    //
+    if (tf != NULL) {
+        for (size_t i = 0; i < token_count; i++) {
+            if (tokens[i].code == 1)
+                fprintf(tf, "%d %d\n", tokens[i].code, tokens[i].index);
+            else if (tokens[i].code == 2)
+                fprintf(tf, "%d %s\n", tokens[i].code, tokens[i].name);
+            else
+                fprintf(tf, "%d\n", tokens[i].code);
+        }
+        fclose(tf);
+    }
+
+    FILE *nf = fopen("nametable.txt", "w");
+    if (nf != NULL) {
+        for (size_t i = 0; i < name_count; i++)
+            fprintf(nf, "%zu %s %d %d\n", i, names[i].name,
+                    names[i].line, names[i].column);
+        fclose(nf);
+    }
+}
