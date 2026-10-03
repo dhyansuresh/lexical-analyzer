@@ -129,11 +129,6 @@ int name_lookup_or_insert(Identifier **names, size_t *name_count,
   const char *name, 
   int line, 
   int column);
-int scan_source(const unsigned char *source,
-    size_t source_length,
-    Token **tokens,
-    size_t *token_count,
-    LexError *error);
 void free_all(Token *tokens, size_t token_count, LexError *error, InputFile *file);
 
 // use for token reading
@@ -142,7 +137,9 @@ int scan_source(
     size_t source_length,
     Token **tokens,
     size_t *token_count,
-    LexError *error
+    LexError *error,
+    Identifier **names,
+    size_t *name_count
 );
 
 int main(int argc, char *argv[]) {
@@ -195,8 +192,10 @@ int main(int argc, char *argv[]) {
     Token *tokens = NULL;
     size_t token_count = 0;
     LexError error = {0};
+    Identifier* names = NULL;
+    size_t name_count = 0;
 
-    int c = scan_source(file.bytes, file.size, &tokens, &token_count, &error);
+    int c = scan_source(file.bytes, file.size, &tokens, &token_count, &error, &names, &name_count);
 
     if (c == -1) {
         for (size_t i = 0; i < token_count; i++) {
@@ -215,7 +214,13 @@ int main(int argc, char *argv[]) {
     }
     printf("\n");
 
-    printf("Name Table:\n");
+    printf("Name Table:\n\n");
+    printf("%-8s%-15s%-8s%s\n", "index", "name", "line", "column");
+
+    for (size_t i = 0; i < name_count; i++) {
+        printf("%-8zu%-15s%-8d%d\n", i, names[i].name, names[i].line, names[i].column);
+    }
+    printf("\n");
 
     printf("Token List:\n\n");
     for (int i = 0; i < token_count; i++) {
@@ -235,7 +240,9 @@ int scan_source(
     size_t source_length,
     Token **tokens,
     size_t *token_count,
-    LexError *error
+    LexError *error,
+    Identifier **names,
+    size_t *name_count
 ) {
     int capacity = 0;
     int start = 0;
@@ -245,6 +252,10 @@ int scan_source(
     int start_line = 1;
     int start_column = 1;
     int error_number = 0;
+    *names = NULL;
+    *name_count = 0;
+    size_t name_capacity = 0;
+
 
     *tokens = NULL;
     *token_count = 0;
@@ -253,6 +264,7 @@ int scan_source(
     for (size_t i = 0; i < source_length; i++) {
         unsigned char current = source[i];
         int c = 0;
+        int index = -1;
 
         start = i;
         start_line = line;
@@ -359,6 +371,14 @@ int scan_source(
             // check for res words
             c = reserved_cmp(buffer, reserved_words, RESERVED_WORDS_COUNT);
 
+            // identifiers go into the name table once
+            if (c == 1) {
+                index = name_lookup_or_insert(names, name_count, &name_capacity,
+                                              buffer, start_line, start_column);
+                if (index == -1)
+                    return -1;
+            }
+
             i += length - 1;
             column += word_length;
         }
@@ -452,7 +472,8 @@ int scan_source(
             .name = text,
             .code = c,
             .line = start_line,
-            .column = start_column
+            .column = start_column,
+            .index = index
         };
 
         (*token_count)++;
