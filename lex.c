@@ -151,7 +151,7 @@ int main(int argc, char *argv[]) {
     // file can't be opened
     FILE *input = fopen(argv[1], "rb");
     if (input == NULL) {
-        printf("Error: unable to open input file %s\n", argv[1]);
+        printf("Error: unable to open input file '%s'\n", argv[1]);
         return 1;
     }
     // read the input file
@@ -223,16 +223,24 @@ int main(int argc, char *argv[]) {
     printf("\n");
 
     printf("Token List:\n\n");
-    for (int i = 0; i < token_count; i++) {
-        printf("%d ", tokens[i].code);
+    // update on printing, now identifiers carry the index and numbers carry the digits 
+    for (size_t i = 0; i < token_count; i++) {
+        if (tokens[i].code == 1)
+            printf("%d %d ", tokens[i].code, tokens[i].index);
+
+        else if (tokens[i].code == 2)
+            printf("%d %s ", tokens[i].code, tokens[i].name);
+
+        else
+            printf("%d ", tokens[i].code);
     }
 
+    printf("\n");
 
-    if (c == 1) {
-        printf("\n");
-       print_error(&error);
-    }
-}
+    if (c == 1)
+        print_error(&error);
+
+    return c == 1 ? 1 : 0;}
 
 // scans each byte and stores into the Token struct
 int scan_source(
