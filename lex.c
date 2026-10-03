@@ -115,9 +115,8 @@ const char *symbols[20] = {
 
 // prototypes
 int get_ident(char *buffer, const unsigned char *bytes, int offset, int capacity);
-int get_number(char *buffer, const unsigned char *bytes, int offset, int capacity);
 int reserved_cmp (char* buffer, const char* reserved_words[], int words_count);
-void print_error (LexError *error);
+void print_error ( const LexError *error);
 int scan_source(const unsigned char *source,
     size_t source_length,
     Token **tokens,
@@ -177,8 +176,38 @@ int main(int argc, char *argv[]) {
 
     int c = scan_source(file.bytes, file.size, &tokens, &token_count, &error);
 
-}
+    if (c == -1) {
+        for (size_t i = 0; i < token_count; i++) {
+            free(tokens[i].name);
+        }
+        free(tokens);
+        free(error.lexeme);
+        free(file.bytes);
+        return 1;
+    }
+    printf("\nLexeme Table:\n");
+    printf("%-15s%s\n", "lexeme", "token");
 
+    for (int i = 0; i < token_count; i++) {
+        printf("%-15s%d\n", tokens[i].name, tokens[i].code);
+    }
+
+    printf("Name Table:\n");
+
+    printf("%-7s%-15s%-7s%s\n", "index", "name", "line", "column");
+    for (int i = 0; i < token_count; i++) {
+        printf("%-15s %s\n",i ,tokens[i].name, tokens[i].line, tokens[i].column);
+    }
+
+    printf("Token List:\n");
+    for (int i = 0; i < token_count; i++) {
+        printf("%d ", tokens[i].code);
+    }
+
+    if (c == 1) {
+       print_error(&error);
+    }
+}
 
 // scans each byte and stores into the Token struct
 int scan_source(
@@ -436,13 +465,8 @@ lexical_error:
 
 // errors list
 void print_error(const LexError *error) {
-    printf(
-        "Error %d at line %d, column %d: ",
-        error->number,
-        error->line,
-        error->column
-    );
 
+    printf("Error %d at line %d, column %d: ", error->number, error->line, error->column);
     switch (error->number) {
         case 1:
             printf("invalid character '%c'", error->character);
@@ -502,32 +526,11 @@ int get_ident(char *buffer, const unsigned char *bytes, int offset, int capacity
   return length;
 }
 
-int get_number(char *buffer, const unsigned char *bytes, int offset, int capacity) {
-  int length = 0;
-
-  while (offset + length < capacity && isdigit(bytes[offset + length])) {
-    if (length == NUMBER_LENGTH )
-      printf("number too long 'lexeme'");
-      return -1; // error 3
-
-    buffer[length] = bytes[offset + length];
-    length++;
-  }
-
-  buffer[length] = '\0';
-  return length;
-}
-
-
-int reserved_cmp (char* buffer, const char* reserved_words[], int words_count){
-  int cmp = 0;
-
-  for ( int i = 0; i < words_count; i++ ){
-       cmp = strcmp(buffer, reserved_words[i]);
-
-      if (cmp != 0)
-        return cmp;
-  }
-
-  return cmp;
+int reserved_cmp (char* buffer, const char* reserved_words[], int words_count) {
+    for (int i = 0; i < words_count; i++ ){
+        if (strcmp(buffer, reserved_words[i]) == 0) {
+            return 20 + i;
+        }
+    }
+    return 1;
 }
