@@ -166,20 +166,21 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     fclose(input);
-    
-  // source program print
-  printf("Source Program:\n");
-  fwrite(file.bytes, file.size, 1, stdout);
 
-  Token *tokens = NULL;
-    int token_count = 0;
+    // source program print
+    printf("Source Program:\n");
+    fwrite(file.bytes, file.size, 1, stdout);
+
+    Token *tokens = NULL;
+    size_t token_count = 0;
     LexError error = {0};
+
     int c = scan_source(file.bytes, file.size, &tokens, &token_count, &error);
 
 }
 
 
-// use for token reading
+// scans each byte and stores into the Token struct
 int scan_source(
     const unsigned char *source,
     size_t source_length,
@@ -209,6 +210,7 @@ int scan_source(
         start_column = column;
         length = 0;
 
+        // checks for error 10
         if ((current < 0x20 || current > 0x7e) &&
             current != '\n' &&
             current != '\r' &&
@@ -217,7 +219,7 @@ int scan_source(
             length = 1;
             goto lexical_error;
         }
-
+        // ignores blanks spaces
         if (isspace(current)) {
             if (current == '\n') {
                 line++;
@@ -225,19 +227,20 @@ int scan_source(
             } else if (current != '\r') {
                 column++;
             }
-
             continue;
         }
 
+        // START: COMMENT CHECKING
+        // ignores '/*....*/'
         if (current == '*' &&
-            source_length - i >= 2 &&
-            source[i + 1] == '/') {
+            source_length - i >= 2 && // if there is '*' and also a next bye
+            source[i + 1] == '/') { // and if that byte is '/' error 8
             length = 2;
             error_number = 8;
             goto lexical_error;
         }
 
-        // ignore comments
+        // see if ignore comments
         if (current == '/' &&
             source_length - i >= 2 &&
             source[i + 1] == '*') {
@@ -284,7 +287,9 @@ int scan_source(
             }
             continue;
         }
+        // END: COMMENT CHECKING
 
+        // checks for letter and if it is a res word
         if (isalpha(current)) {
             char buffer[MAX_IDENTIFIER_LENGTH + 1];
             int word_length = get_ident(buffer,source,i,source_length);
@@ -300,7 +305,6 @@ int scan_source(
                 error_number = 2;
                 goto lexical_error;
             }
-
             length = word_length;
 
             // check for res words
@@ -308,27 +312,27 @@ int scan_source(
 
             i += length - 1;
             column += word_length;
-        } else if (isdigit(current)) {
+        }
+        // if is number check for length
+        else if (isdigit(current)) {
             int end = i;
-
-            for (; end < source_length &&
-                   isdigit(source[end]); end++) {
+            // just iterating end untill it hits a letter
+            for (; end < source_length && isdigit(source[end]); end++) {
             }
 
             int digit_count = end - start;
 
             if (end < source_length && isalpha(source[end])) {
-                for (; end < source_length &&
-                       isalnum(source[end]); end++) {
+                for (; end < source_length && isalnum(source[end]); end++) { // picks up where end found a letter
                 }
 
-                length = end - start;
+                length = end - start; // gives the whole set of number followed by letters
                 error_number = 6;
                 goto lexical_error;
             }
 
             length = digit_count;
-
+            // longer than 6 digits
             if (length > NUMBER_LENGTH) {
                 error_number = 3;
                 goto lexical_error;
@@ -337,21 +341,20 @@ int scan_source(
             c = 2;
             i += length - 1;
             column += length;
-        } else {
+        }
+        else { // handles symbols
             for (int j = 0; j < 20; j++) {
-                if (symbols[j] == NULL)
+                if (symbols[j] == NULL) // 0,1,2 are empty
                     continue;
 
                 int symbol_length = strlen(symbols[j]);
-
-                if (symbol_length > length &&
-                    symbol_length <= source_length - i &&
-                    memcmp(source + i, symbols[j], symbol_length) == 0) {
+                // loop throught the symbols array and try to find a match
+                if (symbol_length > length && symbol_length <= source_length - i && memcmp(source + i, symbols[j], symbol_length) == 0) {
                     c = j;
                     length = symbol_length;
                 }
             }
-
+            // symbol is not part of the array so error
             if (c == 0) {
                 if (current == ':')
                     error_number = 4;
@@ -359,11 +362,9 @@ int scan_source(
                     error_number = 5;
                 else
                     error_number = 1;
-
                 length = 1;
                 goto lexical_error;
             }
-
             i += length - 1;
             column += length;
         }
@@ -407,14 +408,13 @@ int scan_source(
 
         (*token_count)++;
     }
-
+    // empty input or just comments inside
     if (*token_count == 0) {
         error->number = 11;
         error->line = 1;
         error->column = 1;
         return 1;
     }
-
     return 0;
 
 lexical_error:
