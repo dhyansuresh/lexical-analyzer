@@ -43,6 +43,10 @@ Due Date: See Webcourses
 #include <stdlib.h>
 #include <string.h>
 
+#define RESERVED_WORDS_COUNT 17
+#define MAX_IDENTIFIER_LENGTH 12
+#define NUMBER_LENGTH 6
+
 // token storage
 typedef struct {
     char *name;
@@ -68,19 +72,6 @@ typedef struct {
     int size;
     int capacity;
 } InputFile;
-
-// use for token reading
-int scan_source(
-    const unsigned char *source,
-    size_t source_length,
-    Token **tokens,
-    size_t *token_count,
-    LexError *error
-);
-
-#define RESERVED_WORDS_COUNT 17
-#define MAX_IDENTIFIER_LENGTH 12
-#define NUMBER_LENGTH 6
 
 const char *reserved_words[RESERVED_WORDS_COUNT] = {
   "begin",
@@ -110,6 +101,15 @@ int get_ident(char *buffer, const unsigned char *bytes, int offset, int capacity
 int get_number(char *buffer, const unsigned char *bytes, int offset, int capacity);
 
 int reserved_cmp (char* buffer, const char* reserved_words[], int words_count);
+
+// use for token reading
+int scan_source(
+    const unsigned char *source,
+    size_t source_length,
+    Token **tokens,
+    size_t *token_count,
+    LexError *error
+);
 
 int main(int argc, char *argv[]) {
     // read files and check arguments
@@ -168,7 +168,7 @@ int main(int argc, char *argv[]) {
 
     char **identifiers_table = NULL;
     int column = 0;
-    
+
 
     for (int i = 0; i < file.size; i++){
       char buffer[15] = { 0 };
@@ -310,3 +310,6 @@ int reserved_cmp (char* buffer, const char* reserved_words[], int words_count){
 
   return cmp;
 }
+
+
+
